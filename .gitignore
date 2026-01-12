@@ -1,6 +1,8 @@
 # Secrets
 *.pem
 *.key
+flask_secret.txt
+secrets/
 
 # Python
 __pycache__/

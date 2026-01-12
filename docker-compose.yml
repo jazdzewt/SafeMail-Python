@@ -5,11 +5,13 @@ services:
     container_name: flask_app
     restart: always
     environment:
-      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      #- FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
       - SQLALCHEMY_DATABASE_URI=sqlite:////app/instance/app.db
     volumes:
       - ./web:/app # Hot-reload: zmiany w kodzie widoczne od razu
       - app_data:/app/instance # Trwałość bazy danych
+    secrets:
+      - flask_key_file # Wskazujemy, że ten kontener używa tego sekretu
 
   # Kontener Proxy (Brama wejściowa)
   nginx:
@@ -22,3 +24,8 @@ services:
 
 volumes:
   app_data:
+
+
+secrets:
+  flask_key_file:
+    file: ./web/flask_secret.txt
