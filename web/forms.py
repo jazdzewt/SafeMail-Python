@@ -1,4 +1,3 @@
-# web/forms.py
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Length, EqualTo, Regexp
@@ -11,7 +10,12 @@ class RegistrationForm(FlaskForm):
 
     password = PasswordField('Hasło', validators=[
         DataRequired(message="Hasło jest wymagane"),
-        Length(min=8, message="Hasło musi mieć minimum 8 znaków")])
+        Length(min=8, message="Hasło musi mieć minimum 8 znaków"),
+        Regexp(r'^.*[a-z].*$', message="Hasło musi zawierać co najmniej jedną małą literę"),
+        Regexp(r'^.*[A-Z].*$', message="Hasło musi zawierać co najmniej jedną wielką literę"),
+        Regexp(r'^.*[0-9].*$', message="Hasło musi zawierać co najmniej jedną cyfrę"),
+        Regexp(r'^.*[\W_].*$', message="Hasło musi zawierać co najmniej jeden znak specjalny")
+    ])
 
     confirm_password = PasswordField('Powtórz hasło', validators=[
         DataRequired(),

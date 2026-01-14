@@ -1,19 +1,30 @@
+import io
+import base64
+import pyotp
+import qrcode
+
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from config import Config
 from models import db, User
 from forms import RegistrationForm, LoginForm
-from crypto_utils import hash_password, verify_password, generate_key_pair
-from flask_wtf.csrf import CSRFProtect
+from crypto_utils import hash_password, generate_key_pair, encrypt_data
 
 app = Flask(__name__)
-
 app.config.from_object(Config)
-
 db.init_app(app)
-
 csrf = CSRFProtect(app)
-
+'''
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+'''
 with app.app_context():
     try:
         db.create_all()
@@ -24,8 +35,8 @@ with app.app_context():
 def hello():
     return "<h1>Hello World!!!</h1>"
 
-
 @app.route('/register', methods=['GET', 'POST'])
+#@limiter.limit("10 per day")
 def register():
     form = RegistrationForm()
     
@@ -50,21 +61,39 @@ def register():
                 
                 # Generowanie pary kluczy RSA (szyfrowanie klucza prywatnego hasłem usera)
                 enc_priv_key, pub_key = generate_key_pair(password)
+
+                # Generowanie sekretu TOTP (2FA)
+                totp_secret = pyotp.random_base32()
+                # Szyfrowanie sekretu TOTP hasłem użytkownika
+                # Musimy zapisać wersję zaszyfrowaną w bazie (bytes -> hex/string)
+                enc_totp_secret = encrypt_data(totp_secret, password)
                 
                 # Zapis do bazy
                 # Ważne: klucze są w bytes, a baza (Text) woli stringi, więc decode('utf-8')
+                # enc_totp_secret przekażemy jako hex aby uniknąć problemów z kodowaniem
                 new_user = User(
                     username=username,
                     password_hash=hashed_pw,
                     public_key=pub_key.decode('utf-8'),
-                    encrypted_private_key=enc_priv_key.decode('utf-8')
+                    encrypted_private_key=enc_priv_key.decode('utf-8'),
+                    encrypted_totp_secret=enc_totp_secret.hex() # Zapisujemy jako hex, bo to raw bytes (salt+token)
                 )
                 
                 db.session.add(new_user)
                 db.session.commit()
                 
-                flash('Konto założone! Możesz się zalogować.', 'success')
-                return redirect(url_for('login'))
+                # Generowanie kodu QR do wyświetlenia
+                totp_uri = pyotp.totp.TOTP(totp_secret).provisioning_uri(name=username, issuer_name="CyberProject")
+                
+                qr = qrcode.make(totp_uri)
+                buffered = io.BytesIO()
+                qr.save(buffered)
+                qr_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                
+                flash('Konto założone!', 'success')
+                
+                # Renderujemy stronę sukcesu z kodem QR - NIE PRZEKIEROWUJEMY od razu
+                return render_template('register_success.html', qr_code=qr_b64, secret=totp_secret)
                 
             except Exception as e:
                 db.session.rollback()

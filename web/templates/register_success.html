@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Rejestracja zakończona</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Rejestracja pomyślna!</h1>
+
+        <p>Wymagane jest skonfigurowanie uwierzytelniania dwuskładnikowego (2FA).</p>
+        <p>Zeskanuj poniższy kod QR aplikacją Authenticator (np. Google Authenticator).</p>
+
+        <div>
+            <img src="data:image/png;base64,{{ qr_code }}" alt="Kod QR dla 2FA" />
+        </div>
+
+        <p>Lub wpisz ten kod ręcznie:</p>
+        <div class="secret-box">{{ secret }}</div>
+
+        <p>UWAGA: Zapisz ten kod lub zeskanuj go TERAZ. <br> Nie zobaczysz go ponownie.</p>
+
+        <a href="{{ url_for('login') }}" class="btn">Przejdź do logowania</a>
+    </div>
+</body>
+
+</html>
