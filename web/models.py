@@ -14,3 +14,6 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     public_key = db.Column(db.Text, nullable=False)
     encrypted_private_key = db.Column(db.Text, nullable=False)
+
+    # do zrobienia jeszcze
+    #totp_secret = db.Column(db.String(32), nullable=True)

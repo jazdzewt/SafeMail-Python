@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Rejestracja</title>
+</head>
+
+<body>
+    <h2>Rejestracja</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <div>
+            {{ form.username.label }}<br>
+            {{ form.username(size=30) }}
+            {% for error in form.username.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.password.label }}<br>
+            {{ form.password(size=30) }}
+            {% for error in form.password.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </div>
+
+        <div>
+            {{ form.confirm_password.label }}<br>
+            {{ form.confirm_password(size=30) }}
+            {% for error in form.confirm_password.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </div>
+
+        <div>{{ form.submit() }}</div>
+    </form>
+
+    <a href="{{ url_for('login') }}">Mam już konto</a>
+</body>
+
+</html>

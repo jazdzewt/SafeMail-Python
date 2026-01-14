@@ -9,7 +9,9 @@ services:
       - SQLALCHEMY_DATABASE_URI=sqlite:////app/instance/app.db
     volumes:
       - ./web:/app # Hot-reload: zmiany w kodzie widoczne od razu
-      - app_data:/app/instance # Trwałość bazy danych
+      #- app_data:/app/instance # Trwałość bazy danych
+      #Na potrzeby testowania
+      - ./web/instance:/app/instance
     secrets:
       - flask_key_file # Wskazujemy, że ten kontener używa tego sekretu
 
@@ -21,9 +23,8 @@ services:
       - "443:8443" # Wystawiamy tylko bezpieczny port HTTPS
     depends_on:
       - web # Nginx czeka aż Web wstanie
-
-volumes:
-  app_data:
+  #volumes:
+  #app_data:
 
 
 secrets:
