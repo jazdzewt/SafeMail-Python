@@ -1,16 +1,23 @@
-import os
-
 from flask import Flask
 
-from utils import get_secret
+from config import Config
 from models import db, User
 from crypto_utils import hash_password, verify_password, generate_key_pair
-
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = get_secret('flask_key_file')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI', 'sqlite:///app.db')
 
+app.config.from_object(Config)
+
+db.init_app(app)
+
+csrf = CSRFProtect(app)
+
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"Database already exists or another process created it: {e}")
 
 @app.route('/')
 def hello():
