@@ -3,6 +3,7 @@
 
 <head>
     <title>Rejestracja</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
@@ -23,7 +24,7 @@
             {{ form.username.label }}<br>
             {{ form.username(size=30) }}
             {% for error in form.username.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+            <span class="error-msg">[{{ error }}]</span>
             {% endfor %}
         </div>
 
@@ -31,7 +32,7 @@
             {{ form.password.label }}<br>
             {{ form.password(size=30) }}
             {% for error in form.password.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+            <span class="error-msg">[{{ error }}]</span>
             {% endfor %}
         </div>
 
@@ -39,7 +40,7 @@
             {{ form.confirm_password.label }}<br>
             {{ form.confirm_password(size=30) }}
             {% for error in form.confirm_password.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+            <span class="error-msg">[{{ error }}]</span>
             {% endfor %}
         </div>
 

@@ -3,6 +3,7 @@
 
 <head>
     <title>Nowa Wiadomość</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
@@ -23,7 +24,7 @@
             {{ form.recipient.label }}
             {{ form.recipient }}
             {% if form.recipient.errors %}
-            <span style="color: red;">{{ form.recipient.errors[0] }}</span>
+            <span class="error-msg">{{ form.recipient.errors[0] }}</span>
             {% endif %}
         </div>
 
@@ -31,7 +32,7 @@
             {{ form.topic.label }}
             {{ form.topic }}
             {% if form.topic.errors %}
-            <span style="color: red;">{{ form.topic.errors[0] }}</span>
+            <span class="error-msg">{{ form.topic.errors[0] }}</span>
             {% endif %}
         </div>
 
@@ -39,7 +40,7 @@
             {{ form.content.label }}
             {{ form.content }}
             {% if form.content.errors %}
-            <span style="color: red;">{{ form.content.errors[0] }}</span>
+            <span class="error-msg">{{ form.content.errors[0] }}</span>
             {% endif %}
         </div>
 
@@ -47,23 +48,23 @@
             {{ form.files.label }}
             {{ form.files }}
             {% if form.files.errors %}
-            <span style="color: red;">{{ form.files.errors[0] }}</span>
+            <span class="error-msg">{{ form.files.errors[0] }}</span>
             {% endif %}
         </div>
 
         <div class="form-group">
             {{ form.password_confirm.label }}
             {{ form.password_confirm }}
-            <small style="display: block; color: #666; margin-top: 5px;">
+            <small class="help-text">
                 Wprowadź swoje hasło, aby odblokować klucz prywatny i podpisać wiadomość cyfrowo.
             </small>
             {% if form.password_confirm.errors %}
-            <span style="color: red;">{{ form.password_confirm.errors[0] }}</span>
+            <span class="error-msg">{{ form.password_confirm.errors[0] }}</span>
             {% endif %}
         </div>
 
         <button type="submit" class="btn">Wyślij</button>
-        <a href="{{ url_for('dashboard') }}" style="margin-left: 10px;">Anuluj</a>
+        <a href="{{ url_for('dashboard') }}" class="form-actions-link">Anuluj</a>
     </form>
 </body>
 

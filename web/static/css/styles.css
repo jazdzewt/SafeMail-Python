@@ -1,0 +1,83 @@
+/* Global Styles */
+.text-danger {
+    color: red;
+}
+
+/* Dashboard Styles */
+.dashboard-actions {
+    margin-bottom: 20px;
+}
+
+.status-read {
+    color: gray;
+}
+
+.status-new {
+    color: green;
+    font-weight: bold;
+}
+
+.logout-form {
+    display: inline;
+}
+
+.btn-link-logout {
+    background: none;
+    border: none;
+    padding: 0;
+    color: blue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Form Styles (Login, Register, Create Message) */
+.error-msg {
+    color: red;
+}
+
+.help-text {
+    display: block;
+    color: #666;
+    margin-top: 5px;
+}
+
+.form-actions-link {
+    margin-left: 10px;
+}
+
+/* View Message Styles */
+.signature-section {
+    margin-bottom: 20px;
+}
+
+.signature-verify-form {
+    /* No specific inline styles were here, but good for structure */
+}
+
+.message-delete-form {
+    margin-top: 10px;
+}
+
+.message-content {
+    background: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.attachment-item {
+    margin-bottom: 10px;
+}
+
+.attachment-download-form {
+    display: inline;
+    margin-left: 10px;
+}
+
+.password-input-small {
+    width: 100px;
+    padding: 2px;
+}
+
+.btn-small {
+    padding: 2px 5px;
+}

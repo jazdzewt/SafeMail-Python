@@ -3,6 +3,7 @@
 
 <head>
     <title>Panel Użytkownika</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
 </head>
 
@@ -10,9 +11,9 @@
     <div class="container">
         <h1>Witaj, {{ name }}!</h1>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
+        {% with flashed_messages = get_flashed_messages(with_categories=true) %}
+        {% if flashed_messages %}
+        {% for category, message in flashed_messages %}
         <div class="flash flash-{{ category }}">{{ message }}</div>
         {% endfor %}
         {% endif %}
@@ -20,7 +21,7 @@
 
         <p>To jest Twój bezpieczny panel.</p>
 
-        <div style="margin-bottom: 20px;">
+        <div class="dashboard-actions">
             <a href="{{ url_for('send_message') }}" class="btn">Napisz nową wiadomość</a>
         </div>
 
@@ -43,9 +44,9 @@
                     <td>{{ msg.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                     <td>
                         {% if msg.is_read %}
-                        <span style="color: gray;">Przeczytana</span>
+                        <span class="status-read">Przeczytana</span>
                         {% else %}
-                        <span style="color: green; font-weight: bold;">NOWA</span>
+                        <span class="status-new">NOWA</span>
                         {% endif %}
                     </td>
                     <td>
@@ -61,12 +62,12 @@
         </table>
 
         <hr>
-        <form action="{{ url_for('logout') }}" method="post" style="display:inline;">
+        <form action="{{ url_for('logout') }}" method="post" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit"
-                style="background:none; border:none; padding:0; color:blue; text-decoration:underline; cursor:pointer;">Wyloguj
+            <button type="submit" class="btn-link-logout">Wyloguj
                 się</button>
         </form>
+    </div>
 </body>
 
 </html>

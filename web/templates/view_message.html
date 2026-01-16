@@ -3,6 +3,7 @@
 
 <head>
     <title>Wiadomość</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
@@ -23,7 +24,7 @@
             <p><strong>Data:</strong> {{ msg.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</p>
         </div>
 
-        <div class="signature-section" style="margin-bottom: 20px;">
+        <div class="signature-section">
             <form action="{{ url_for('verify_signature', message_id=msg.id) }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn-verify">
@@ -31,7 +32,7 @@
                 </button>
             </form>
 
-            <form action="{{ url_for('delete_message', message_id=msg.id) }}" method="POST" style="margin-top: 10px;">
+            <form action="{{ url_for('delete_message', message_id=msg.id) }}" method="POST" class="message-delete-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn-delete">
                     Usuń wiadomość
@@ -44,7 +45,7 @@
         {% if decrypted_body %}
         <div class="message-body">
             <h3>Treść wiadomości:</h3>
-            <pre style="background: #f0f0f0; padding: 10px; border-radius: 5px;">{{ decrypted_body }}</pre>
+            <pre class="message-content">{{ decrypted_body }}</pre>
         </div>
 
         {% if msg.attachments %}
@@ -52,14 +53,14 @@
             <h3>Załączniki:</h3>
             <ul>
                 {% for att in msg.attachments %}
-                <li style="margin-bottom: 10px;">
+                <li class="attachment-item">
                     Plik: <strong>{{ att.filename }}</strong>
                     <form action="{{ url_for('download_attachment', attachment_id=att.id) }}" method="POST"
-                        style="display:inline; margin-left: 10px;">
+                        class="attachment-download-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="password" name="password" placeholder="Hasło" required
-                            style="width: 100px; padding: 2px;">
-                        <button type="submit" style="padding: 2px 5px;">Pobierz</button>
+                            class="password-input-small">
+                        <button type="submit" class="btn-small">Pobierz</button>
                     </form>
                 </li>
                 {% endfor %}

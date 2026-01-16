@@ -3,6 +3,7 @@
 
 <head>
     <title>Logowanie</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
@@ -24,21 +25,21 @@
         <div>
             {{ form.username.label }}: {{ form.username(size=30) }}
             {% for error in form.username.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+            <span class="error-msg">[{{ error }}]</span>
             {% endfor %}
         </div>
 
         <div>
             {{ form.password.label }}: {{ form.password(size=30) }}
             {% for error in form.password.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+            <span class="error-msg">[{{ error }}]</span>
             {% endfor %}
         </div>
 
         <div>
             {{ form.totp_code.label }}: {{ form.totp_code(size=30, placeholder="Np. 123456") }}
             {% for error in form.totp_code.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+            <span class="error-msg">[{{ error }}]</span>
             {% endfor %}
         </div>
 
