@@ -61,7 +61,7 @@ def decrypt_private_key(encrypted_pem_data: bytes, password: str):
         print(f"Private keys decryption failed: {e}")
         return None
 
-def encrypt_data(data: str, password: str) -> bytes:
+def encrypt_totp(data: str, password: str) -> bytes:
     """
     Szyfruje dowolny tekst (np. sekret TOTP) używając hasła użytkownika.
     Używa PBKDF2 do wyprowadzenia klucza dla AES (Fernet).
@@ -90,7 +90,7 @@ def encrypt_data(data: str, password: str) -> bytes:
     # Format: salt(16b) + token
     return salt + token
 
-def decrypt_data(encrypted_data: bytes, password: str) -> str:
+def decrypt_totp(encrypted_data: bytes, password: str) -> str:
     """
     Odszyfrowuje dane (np. sekret TOTP).
     Wyciąga sól z pierwszych 16 bajtów, generuje klucz i odszyfrowuje.
@@ -138,6 +138,18 @@ def encrypt_aes_gcm(session_key: bytes,plaintext: bytes):
     
     return ciphertext, nonce, encryptor.tag, session_key
 
+def decrypt_aes_gcm(session_key: bytes, ciphertext: bytes, nonce: bytes, tag: bytes) -> bytes:
+    """
+    Odszyfrowuje dane algorytmem AES-GCM.
+    """
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.backends import default_backend
+
+    cipher = Cipher(algorithms.AES(session_key), modes.GCM(nonce, tag), backend=default_backend())
+    decryptor = cipher.decryptor()
+    
+    return decryptor.update(ciphertext) + decryptor.finalize()
+
 def encrypt_rsa(public_key_pem: str, data: bytes) -> bytes:
     """
     Szyfruje dane (np. klucz sesyjny 32B) kluczem PUBLICZNYM (PEM).
@@ -170,6 +182,21 @@ def sign_rsa(private_key, data: bytes) -> bytes:
     )
     return signature
 
+def decrypt_rsa(private_key, ciphertext: bytes) -> bytes:
+    """
+    Odszyfrowuje dane (np. klucz sesyjny) używając klucza PRYWATNEGO.
+    Używa OAEP + MGF1 + SHA256.
+    """
+    plaintext = private_key.decrypt(
+        ciphertext,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return plaintext
+
 def verify_signature_rsa(public_key_pem: str, data: bytes, signature: bytes) -> bool:
     """
     Weryfikuje podpis danych kluczem PUBLICZNYM.
@@ -189,30 +216,3 @@ def verify_signature_rsa(public_key_pem: str, data: bytes, signature: bytes) -> 
     except Exception as e:
         print(f"Signature verification failed!")
         return False
-
-def decrypt_aes_gcm(session_key: bytes, ciphertext: bytes, nonce: bytes, tag: bytes) -> bytes:
-    """
-    Odszyfrowuje dane algorytmem AES-GCM.
-    """
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.backends import default_backend
-
-    cipher = Cipher(algorithms.AES(session_key), modes.GCM(nonce, tag), backend=default_backend())
-    decryptor = cipher.decryptor()
-    
-    return decryptor.update(ciphertext) + decryptor.finalize()
-
-def decrypt_rsa(private_key, ciphertext: bytes) -> bytes:
-    """
-    Odszyfrowuje dane (np. klucz sesyjny) używając klucza PRYWATNEGO.
-    Używa OAEP + MGF1 + SHA256.
-    """
-    plaintext = private_key.decrypt(
-        ciphertext,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-    return plaintext

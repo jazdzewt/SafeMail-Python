@@ -11,10 +11,10 @@ from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 from config import Config
-from models import db, User, Message
+from models import db, User, Message, Attachment
 from forms import RegistrationForm, LoginForm, MessageForm
 from utils import validate_file
-from crypto_utils import hash_password, verify_password, generate_key_pair, encrypt_data, decrypt_data, decrypt_private_key, encrypt_aes_gcm, encrypt_rsa, sign_rsa, decrypt_aes_gcm, decrypt_rsa
+from crypto_utils import hash_password, verify_password, generate_key_pair, encrypt_totp, decrypt_totp, decrypt_private_key, encrypt_aes_gcm, encrypt_rsa, sign_rsa, decrypt_aes_gcm, decrypt_rsa, verify_signature_rsa
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -78,7 +78,7 @@ def register():
                 totp_secret = pyotp.random_base32()
                 # Szyfrowanie sekretu TOTP hasłem użytkownika
                 # Musimy zapisać wersję zaszyfrowaną w bazie (bytes -> hex/string)
-                enc_totp_secret = encrypt_data(totp_secret, password)
+                enc_totp_secret = encrypt_totp(totp_secret, password)
                 
                 # Zapis do bazy
                 # Ważne: klucze są w bytes, a baza (Text) woli stringi, więc decode('utf-8')
@@ -128,7 +128,7 @@ def login():
             if verify_password(user.password_hash, form.password.data):
                 
                 # 3. Odszyfrowanie sekretu 2FA hasłem użytkownika
-                decrypted_totp_secret = decrypt_data(bytes.fromhex(user.encrypted_totp_secret), form.password.data)
+                decrypted_totp_secret = decrypt_totp(bytes.fromhex(user.encrypted_totp_secret), form.password.data)
                 
                 if decrypted_totp_secret:
                     # 4. Weryfikacja kodu TOTP
@@ -216,33 +216,43 @@ def send_message():
              # Encrypt Body (AES)
              ciphertext, nonce, tag, session_key = encrypt_aes_gcm(session_key, content)
              
-             # Sign the Ciphertext (nonce + ciphertext + tag)
+             # Start building sign_data with body parts
              sign_data = nonce + ciphertext + tag
-             signature = sign_rsa(sender_priv_key_obj, sign_data)
-             
-             # Obsługa załącznika (jeśli jest) - również raz
-             attachment_blob = None
-             attachment_filename = None
-             attachment_nonce = None
-             attachment_tag = None
 
-             if form.file.data:
-                 file_storage = form.file.data
-                 clean_filename = validate_file(file_storage)
-                 if clean_filename is False:
-                      flash('Niedozwolone rozszerzenie pliku!', 'danger')
-                      return render_template('create_message.html', form=form)
-                 
-                 if clean_filename:
-                      file_bytes = file_storage.read()
-                      # Szyfrowanie pliku TYM SAMYM kluczem sesyjnym (session_key)
-                      # Generujemy nowy nonce dla pliku
-                      att_ciphertext, att_nonce, att_tag, _ = encrypt_aes_gcm(session_key, file_bytes)
-                      
-                      attachment_blob = att_ciphertext
-                      attachment_filename = clean_filename
-                      attachment_nonce = att_nonce
-                      attachment_tag = att_tag
+             # Przygotowanie załączników (raz)
+             encrypted_attachments = []
+             if form.files.data:
+                 for file_storage in form.files.data:
+                     # Check if file is empty (browser sometimes sends empty field)
+                     if file_storage.filename == '':
+                         continue
+                         
+                     clean_filename = validate_file(file_storage)
+                     if clean_filename is False:
+                          flash(f'Niedozwolone rozszerzenie pliku: {file_storage.filename}', 'danger')
+                          return render_template('create_message.html', form=form)
+                     
+                     if clean_filename:
+                          file_bytes = file_storage.read()
+                          # Szyfrowanie pliku kluczem sesyjnym
+                          att_ciphertext, att_nonce, att_tag, _ = encrypt_aes_gcm(session_key, file_bytes)
+                          
+                          encrypted_attachments.append({
+                              'filename': clean_filename,
+                              'blob': att_ciphertext,
+                              'nonce': att_nonce,
+                              'tag': att_tag
+                          })
+
+             # SORTUJEMY załączniki po TAGu (jest identyczny dla każdego odbiorcy), aby kolejność była deterministyczna
+             encrypted_attachments.sort(key=lambda x: x['tag'])
+
+             # Append sorted attachment parts to sign_data
+             for att in encrypted_attachments:
+                 sign_data += att['nonce'] + att['blob'] + att['tag']
+
+             # Sign the Ciphertext (nonce + ciphertext + tag + [att_nonce + att_ciphertext + att_tag]...)
+             signature = sign_rsa(sender_priv_key_obj, sign_data)
 
              # 3. Loop through Recipients and Save Messages
              sent_count = 0
@@ -264,13 +274,22 @@ def send_message():
                      body_nonce=nonce,                 
                      tag=tag,
                      enc_session_key_recipient=enc_key_recipient,
-                     signature=signature,                 
-                     encrypted_attachment_blob=attachment_blob,
-                     attachment_filename=attachment_filename,
-                     attachment_nonce=attachment_nonce,
-                     attachment_tag=attachment_tag
+                     signature=signature
                  )
                  db.session.add(msg)
+                 db.session.flush() # To get msg.id if needed
+                 
+                 # Add attachments
+                 for att_data in encrypted_attachments:
+                     attachment = Attachment(
+                         message_id=msg.id,
+                         filename=att_data['filename'],
+                         encrypted_blob=att_data['blob'],
+                         nonce=att_data['nonce'], # nonces are reused here which is fine as encryption is same.
+                         tag=att_data['tag']
+                     )
+                     db.session.add(attachment)
+                 
                  sent_count += 1
              
              if sent_count > 0:
@@ -301,8 +320,12 @@ def view_message(message_id):
     sender = User.query.get(msg.sender_id)
     sender_name = sender.username if sender else "Nieznany"
     
+    verification_status = None
+    # Auto-verification removed as per user request.
+    # Verification is now manual via /verify_signature/...
+
     decrypted_body = None
-    decrypted_file_name = None
+    #decrypted_file_name = None
     
     if request.method == 'POST':
         # Only receiver can decrypt
@@ -332,8 +355,7 @@ def view_message(message_id):
                             # Decrypt Body
                             decrypted_body = decrypt_aes_gcm(session_key, msg.encrypted_body, msg.body_nonce, msg.tag).decode('utf-8')
                             
-                            if msg.encrypted_attachment_blob:
-                                 decrypted_file_name = msg.attachment_filename
+                            # Attachments are accessed via msg.attachments in template
 
                             # Mark as read if receiver
                             if not msg.is_read:
@@ -343,27 +365,61 @@ def view_message(message_id):
                     except Exception as e:
                         flash(f'Błąd deszyfrowania: {e}', 'danger')
 
-    return render_template('view_message.html', msg=msg, sender_name=sender_name, decrypted_body=decrypted_body, decrypted_file_name=decrypted_file_name)
+    return render_template('view_message.html', msg=msg, sender_name=sender_name, decrypted_body=decrypted_body, verification_status=verification_status)
 
-@app.route('/download_attachment/<string:message_id>', methods=['POST'])
+@app.route('/verify_signature/<string:message_id>', methods=['POST'])
 @login_required
-def download_attachment(message_id):
+def verify_signature(message_id):
     msg = Message.query.get_or_404(message_id)
+    
+    if msg.receiver_id != current_user.id and msg.sender_id != current_user.id:
+         abort(403)
+
+    sender = User.query.get(msg.sender_id)
+    if not sender or not msg.signature:
+        flash('Brak podpisu lub nadawcy.', 'warning')
+        return redirect(url_for('view_message', message_id=message_id))
+
+    try:
+        # Reconstruct what was signed: nonce + ciphertext + tag
+        sign_data = msg.body_nonce + msg.encrypted_body + msg.tag
+        
+        # Sort attachments by TAG to ensure same order as signed
+        sorted_attachments = sorted(msg.attachments, key=lambda x: x.tag)
+        
+        for att in sorted_attachments:
+            sign_data += att.nonce + att.encrypted_blob + att.tag
+        
+        is_valid = verify_signature_rsa(sender.public_key, sign_data, msg.signature)
+        
+        if is_valid:
+            flash('Podpis cyfrowy jest POPRAWNY. Wiadomość jest autentyczna.', 'success')
+        else:
+            flash('Podpis cyfrowy jest NIEPOPRAWNY! Wiadomość mogła zostać zmodyfikowana.', 'danger')
+            
+    except Exception as e:
+         print(f"Verification error: {e}")
+         flash(f'Błąd weryfikacji: {e}', 'danger')
+
+    return redirect(url_for('view_message', message_id=message_id))
+
+@app.route('/download_attachment/<string:attachment_id>', methods=['POST'])
+@login_required
+def download_attachment(attachment_id):
+    attachment = Attachment.query.get_or_404(attachment_id)
+    msg = attachment.message # relation defined in models
+    
     if msg.receiver_id != current_user.id:
         abort(403)
-        
-    if not msg.encrypted_attachment_blob:
-        flash('Ta wiadomość nie ma załącznika.', 'warning')
-        return redirect(url_for('view_message', message_id=message_id))
 
     password = request.form.get('password')
     if not password:
          flash('Podaj hasło aby pobrać plik.', 'danger')
-         return redirect(url_for('view_message', message_id=message_id))
+         return redirect(url_for('view_message', message_id=msg.id))
          
     if not verify_password(current_user.password_hash, password):
         flash('Nieprawidłowe hasło.', 'danger')
-        return redirect(url_for('view_message', message_id=message_id))
+        return redirect(url_for('view_message', message_id=msg.id))
         
     try:
         priv_key_pem_enc = current_user.encrypted_private_key
@@ -374,17 +430,43 @@ def download_attachment(message_id):
             
         session_key = decrypt_rsa(priv_key_obj, enc_session_key)
         
-        file_bytes = decrypt_aes_gcm(session_key, msg.encrypted_attachment_blob, msg.attachment_nonce, msg.attachment_tag)
+        file_bytes = decrypt_aes_gcm(session_key, attachment.encrypted_blob, attachment.nonce, attachment.tag)
         
         return send_file(
             io.BytesIO(file_bytes),
             as_attachment=True,
-            download_name=msg.attachment_filename,
+            download_name=attachment.filename,
             mimetype='application/octet-stream'
         )
         
     except Exception as e:
         flash(f'Błąd pobierania: {e}', 'danger')
+        return redirect(url_for('view_message', message_id=msg.id))
+
+@app.route('/delete_message/<string:message_id>', methods=['POST'])
+@login_required
+def delete_message(message_id):
+    msg = Message.query.get_or_404(message_id)
+    
+    # Security check: Only the receiver can delete (and read)
+    if msg.receiver_id != current_user.id:
+        abort(403)
+        
+    try:
+        # Manually delete attachments first (safer if no cascade is set)
+        for att in msg.attachments:
+            db.session.delete(att)
+            
+        # Delete the message itself
+        db.session.delete(msg)
+        db.session.commit()
+        
+        flash('Wiadomość została trwale usunięta.', 'success')
+        return redirect(url_for('dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Błąd podczas usuwania wiadomości: {e}', 'danger')
         return redirect(url_for('view_message', message_id=message_id))
 
 if __name__ == '__main__':

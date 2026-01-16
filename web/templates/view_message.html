@@ -23,6 +23,24 @@
             <p><strong>Data:</strong> {{ msg.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</p>
         </div>
 
+        <div class="signature-section" style="margin-bottom: 20px;">
+            <form action="{{ url_for('verify_signature', message_id=msg.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-verify">
+                    Zweryfikuj podpis cyfrowy
+                </button>
+            </form>
+
+            <form action="{{ url_for('delete_message', message_id=msg.id) }}" method="POST" style="margin-top: 10px;"
+                onsubmit="return confirm('Czy na pewno chcesz TRWALE usunąć tę wiadomość i wszystkie załączniki? Tej operacji nie można cofnąć.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-delete"
+                    style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">
+                    Usuń wiadomość
+                </button>
+            </form>
+        </div>
+
         <hr>
 
         {% if decrypted_body %}
@@ -31,18 +49,23 @@
             <pre style="background: #f0f0f0; padding: 10px; border-radius: 5px;">{{ decrypted_body }}</pre>
         </div>
 
-        {% if decrypted_file_name %}
+        {% if msg.attachments %}
         <div class="attachment-section">
-            <h3>Załącznik:</h3>
-            <p>Plik: <strong>{{ decrypted_file_name }}</strong></p>
-
-            <form action="{{ url_for('download_attachment', message_id=msg.id) }}" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label for="password">Podaj hasło, aby pobrać i odszyfrować:</label>
-                <br>
-                <input type="password" name="password" required>
-                <button type="submit">Pobierz</button>
-            </form>
+            <h3>Załączniki:</h3>
+            <ul>
+                {% for att in msg.attachments %}
+                <li style="margin-bottom: 10px;">
+                    Plik: <strong>{{ att.filename }}</strong>
+                    <form action="{{ url_for('download_attachment', attachment_id=att.id) }}" method="POST"
+                        style="display:inline; margin-left: 10px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="password" name="password" placeholder="Hasło" required
+                            style="width: 100px; padding: 2px;">
+                        <button type="submit" style="padding: 2px 5px;">Pobierz</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
         </div>
         {% endif %}
 

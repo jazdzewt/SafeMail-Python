@@ -1,5 +1,6 @@
 import os 
 from werkzeug.utils import secure_filename
+from wtforms.validators import ValidationError
 
 def get_secret(secret_name):
     # 1. Najpierw próbujemy Docker Secrets (plik)
@@ -30,3 +31,13 @@ def validate_file(file_storage):
     if ext in FORBIDDEN_EXTENSIONS:
         return False
     return filename
+
+def validate_file_size(form, field):
+    max_mb = 10
+    for file in field.data:
+        if not file or isinstance(file, str): continue
+        file.seek(0, 2)
+        size = file.tell()
+        file.seek(0)
+        if size > max_mb * 1024 * 1024:
+            raise ValidationError(f'Plik "{file.filename}" jest za duży (max {max_mb}MB).')

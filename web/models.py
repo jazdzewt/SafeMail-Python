@@ -47,7 +47,14 @@ class Message(db.Model):
     # (Dowód, że to naprawdę on wysłał, a nie serwer sfałszował wiadomość)
     signature = deferred(db.Column(db.LargeBinary, nullable=False))
 
-    encrypted_attachment_blob = deferred(db.Column(db.LargeBinary, nullable=True))# BLOB
-    attachment_filename = deferred(db.Column(db.String(255), nullable=True))
-    attachment_nonce = deferred(db.Column(db.LargeBinary, nullable=True))
-    attachment_tag = deferred(db.Column(db.LargeBinary, nullable=True))
+    # Relacja do wielu załączników
+    attachments = db.relationship('Attachment', backref='message', lazy=True)
+
+class Attachment(db.Model):
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    message_id = db.Column(db.String(36), db.ForeignKey('message.id'), nullable=False)
+    
+    filename = db.Column(db.String(255), nullable=False)
+    encrypted_blob = deferred(db.Column(db.LargeBinary, nullable=False))
+    nonce = deferred(db.Column(db.LargeBinary, nullable=False))
+    tag = deferred(db.Column(db.LargeBinary, nullable=False))
