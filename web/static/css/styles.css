@@ -1,9 +1,7 @@
-/* Global Styles */
 .text-danger {
     color: red;
 }
 
-/* Dashboard Styles */
 .dashboard-actions {
     margin-bottom: 20px;
 }
@@ -30,7 +28,6 @@
     cursor: pointer;
 }
 
-/* Form Styles (Login, Register, Create Message) */
 .error-msg {
     color: red;
 }
@@ -45,14 +42,11 @@
     margin-left: 10px;
 }
 
-/* View Message Styles */
 .signature-section {
     margin-bottom: 20px;
 }
 
-.signature-verify-form {
-    /* No specific inline styles were here, but good for structure */
-}
+.signature-verify-form {}
 
 .message-delete-form {
     margin-top: 10px;

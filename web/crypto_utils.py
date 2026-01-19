@@ -5,18 +5,21 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
-# Konfiguracja Argon2 (twarde limity dla bezpieczeństwa)
-ph = argon2.PasswordHasher(
-    time_cost=2, memory_cost=65536, parallelism=2, hash_len=32, salt_len=16
-)
+# Konfiguracja argon2
+ph = argon2.PasswordHasher(time_cost=2, memory_cost=65536, parallelism=2, hash_len=32, salt_len=16)
+# 2 iteracje algorytmu argon2
+# 65536 - ilość pamięci używanych przez algorytm
+# 2 - ilość wątków używanych przez algorytm
+# 32 bajty - długość hashu
+# 16 bajtów - długość soli
 
 def hash_password(password: str) -> str:
-    """Tworzy bezpieczny hash hasła."""
     return ph.hash(password)
 
 def verify_password(hash: str, password: str) -> bool:
-    """Sprawdza czy hasło pasuje do hasha."""
     try:
         ph.verify(hash, password)
         return True
@@ -29,19 +32,25 @@ def generate_key_pair(password: str):
     Klucz prywatny jest SZYFROWANY hasłem użytkownika (AES-256).
     """
     private_key = rsa.generate_private_key(
+        #standardowy wykładnik publiczny e
         public_exponent=65537,
+        # długość klucza RSA (n = p * q)
         key_size=2048
     )
     
     # Szyfrowanie klucza prywatnego hasłem użytkownika
     encrypted_private_pem = private_key.private_bytes(
+        # Zapisujemy jako PEM (Base64 + nagłówki tekstowe)
         encoding=serialization.Encoding.PEM,
+        # Używamy standardowego formatu dla klucza prywatnego
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.BestAvailableEncryption(password.encode())
+        # Szyfrowanie hasłem za pomocą AES-256 i PBKDF2 (domyślnie), informacja zapisana w PEM'ie
+        encryption_algorithm=serialization.BestAvailableEncryption(password.encode()) # zamieniamy hasło na bajty
     )
     
     public_pem = private_key.public_key().public_bytes(
         encoding=serialization.Encoding.PEM,
+        # Używamy standardowego formatu dla klucza publicznego
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     
@@ -66,11 +75,7 @@ def encrypt_totp(data: str, password: str) -> bytes:
     Szyfruje dowolny tekst (np. sekret TOTP) używając hasła użytkownika.
     Używa PBKDF2 do wyprowadzenia klucza dla AES (Fernet).
     """
-    # 1. Generujemy sól (w produkcji powinna być losowa i zapisana obok danych,
-    # ale dla uproszczenia tutaj użyjemy stałej soli lub deterministycznej,
-    # UWAGA: W pełnej implementacji sól powinna być per-user, zapisana w bazie osobno.
-    # Tutaj dla uproszczenia (demo) użyjemy stałej soli lub hashu loginu.
-    # Zróbmy to bezpiecznie: generujemy losową sól i doklejamy do wyniku.
+
     salt = os.urandom(16)
     
     # 2. Derive key
@@ -117,9 +122,6 @@ def decrypt_totp(encrypted_data: bytes, password: str) -> str:
         print(f"Decryption failed: {e}")
         return None
 
-
-# ==============================================================================
-
 def encrypt_aes_gcm(session_key: bytes,plaintext: bytes):
     """
     Szyfruje dane algorytmem AES-GCM.
@@ -127,9 +129,6 @@ def encrypt_aes_gcm(session_key: bytes,plaintext: bytes):
     """
     #session_key = key #os.urandom(32) # 256-bit AES key
     nonce = os.urandom(12) # 96-bit nonce for GCM
-    
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.backends import default_backend
 
     cipher = Cipher( algorithms.AES(session_key), modes.GCM(nonce), backend=default_backend() )
     encryptor = cipher.encryptor()
@@ -142,8 +141,6 @@ def decrypt_aes_gcm(session_key: bytes, ciphertext: bytes, nonce: bytes, tag: by
     """
     Odszyfrowuje dane algorytmem AES-GCM.
     """
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.backends import default_backend
 
     cipher = Cipher(algorithms.AES(session_key), modes.GCM(nonce, tag), backend=default_backend())
     decryptor = cipher.decryptor()

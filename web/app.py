@@ -69,18 +69,12 @@ with app.app_context():
 def register():
     form = RegistrationForm()
     
-    # Ta jedna linijka robi 3 rzeczy:
-    # 1. Sprawdza czy to POST.
-    # 2. Sprawdza czy TOKEN CSRF jest poprawny (bezpieczeństwo!).
-    # 3. Sprawdza czy pola spełniają wymogi (np. długość hasła).
+    # Walidujemy formularz (Sprawdzamy czy POST, czy Token CSRF jest poprawny i czy pola spełniają wymogi)
     if form.validate_on_submit():
-        # Tu już masz pewność, że dane są bezpieczne i poprawne
         username = form.username.data
         password = form.password.data
         
-        # ... (reszta Twojego kodu: sprawdzanie usera, generowanie kluczy RSA) ...
-        # np:
-        # Sprawdzenie czy użytkownik już istnieje (SQLAlchemy protect against SQL Injection)
+        # Sprawdzenie czy użytkownik już istnieje
         if User.query.filter_by(username=username).first():
             flash('Błąd podczas rejestracji!', 'danger')
         else:
@@ -88,18 +82,16 @@ def register():
                 # Hashowanie hasła
                 hashed_pw = hash_password(password)
                 
-                # Generowanie pary kluczy RSA (szyfrowanie klucza prywatnego hasłem usera)
+                # Generowanie pary kluczy RSA (klucz prywatny już zaszyfrowany hasłem użytkownika)
                 enc_priv_key, pub_key = generate_key_pair(password)
 
-                # Generowanie sekretu TOTP (2FA)
+                # Generowanie sekretu TOTP 
                 totp_secret = pyotp.random_base32()
                 # Szyfrowanie sekretu TOTP hasłem użytkownika
-                # Musimy zapisać wersję zaszyfrowaną w bazie (bytes -> hex/string)
                 enc_totp_secret = encrypt_totp(totp_secret, password)
                 
-                # Zapis do bazy
-                # Ważne: klucze są w bytes, a baza (Text) woli stringi, więc decode('utf-8')
-                # enc_totp_secret przekażemy jako hex aby uniknąć problemów z kodowaniem
+                # Zapisujemy do bazy danych nowego użytkownika
+                # klucze są w bytes, a w bazie danych są Stringi więc używamy decode('utf-8')
                 new_user = User(
                     username=username,
                     password_hash=hashed_pw,
@@ -145,21 +137,21 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         
-        # 1. Weryfikacja czy user istnieje
+        # Sprawdzamy czy user istnieje
         if user:
-            # 2. Weryfikacja hasła (Argon2)
+            # Sprawdzamy hasło
             if verify_password(user.password_hash, form.password.data):
                 
-                # 3. Odszyfrowanie sekretu 2FA hasłem użytkownika
+                # Odszyfrowywujemy sekret 2FA hasłem użytkownika
                 decrypted_totp_secret = decrypt_totp(bytes.fromhex(user.encrypted_totp_secret), form.password.data)
                 
                 if decrypted_totp_secret:
-                    # 4. Weryfikacja kodu TOTP
+                    # Weryfikacja kodu TOTP
                     totp = pyotp.TOTP(decrypted_totp_secret)
                     if totp.verify(form.totp_code.data):
-                        # SUKCES - Logowanie
+                        # logowanie
                         login_user(user)
-                        #flash('Zalogowano pomyślnie!', 'success')
+                        # Zapisujemy user_id do sesji (ciasteczko)
                         return redirect(url_for('dashboard'))
                     else:
                         flash('Nieprawidłowy kod 2FA.', 'danger')
@@ -170,7 +162,6 @@ def login():
         else:
              flash('Nieprawidłowy login lub hasło.', 'danger')
         
-        # Opóźnienie odpowiedzi w przypadku niepowodzenia (mitigacja ataków czasowych i brute-force)
     time.sleep(random.uniform(1.0, 2.0))
         
     return render_template('login.html', form=form)
@@ -313,7 +304,7 @@ def send_message():
                          message_id=msg.id,
                          filename=att_data['filename'],
                          encrypted_blob=att_data['blob'],
-                         nonce=att_data['nonce'], # nonces are reused here which is fine as encryption is same.
+                         nonce=att_data['nonce'],
                          tag=att_data['tag']
                      )
                      db.session.add(attachment)
@@ -441,8 +432,10 @@ def download_attachment(attachment_id):
 
     if not validate_uuid(attachment_id):
         abort(400)
+
     attachment = Attachment.query.get_or_404(attachment_id)
-    msg = attachment.message # relation defined in models
+
+    msg = attachment.message
     
     if msg.receiver_id != current_user.id:
         abort(403)
@@ -461,7 +454,6 @@ def download_attachment(attachment_id):
         priv_key_pem_enc = current_user.encrypted_private_key
         priv_key_obj = decrypt_private_key(priv_key_pem_enc.encode('utf-8'), password)
         
-        # Only receiver can download
         enc_session_key = msg.enc_session_key_recipient
             
         session_key = decrypt_rsa(priv_key_obj, enc_session_key)
@@ -489,16 +481,10 @@ def delete_message(message_id):
         abort(400)
     msg = Message.query.get_or_404(message_id)
     
-    # Security check: Only the receiver can delete (and read)
     if msg.receiver_id != current_user.id:
         abort(403)
         
     try:
-        # Manually delete attachments first (safer if no cascade is set)
-        #for att in msg.attachments:
-        #    db.session.delete(att)
-            
-        # Delete the message itself
         db.session.delete(msg)
         db.session.commit()
         

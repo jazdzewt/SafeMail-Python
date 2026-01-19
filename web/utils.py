@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 from wtforms.validators import ValidationError
 
 def get_secret(secret_name):
-    # Najpierw próbujemy Docker Secrets (plik)
+    # Najpierw sprawdzamy  Docker Secrets
     try:
         with open(f'/run/secrets/{secret_name}', 'r') as file:
             return file.read().strip()
@@ -14,7 +14,7 @@ def get_secret(secret_name):
         if key:
             return key
             
-    # Brak klucza - nie uruchamiamy aplikacji
+    # Brak klucza, nie uruchamiamy aplikacji
     raise ValueError(f"CRITICAL ERROR: No Secret '{secret_name}'!")
 
 

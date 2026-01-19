@@ -16,7 +16,7 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
 
     # Czas życia tokena CSRF
-    WTF_CSRF_TIME_LIMIT = 900
+    WTF_CSRF_TIME_LIMIT = 900 # 15 minut
     # Wymusza, aby tokeny CSRF były przesyłane tylko przez HTTPS
     WTF_CSRF_SSL_STRICT = True
     # Informacja jak długo użytkownik pozostaje zalogowany bez aktywności.

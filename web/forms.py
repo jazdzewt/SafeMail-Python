@@ -8,10 +8,11 @@ class RegistrationForm(FlaskForm):
     username = StringField('Login', validators=[
         DataRequired(message="Login jest wymagany"),
         Length(min=3, max=20, message="Login musi mieć od 3 do 20 znaków"),
+        # [\w] - dowolna litera, cyfra lub znak podkreślenia
         Regexp(r'^[\w]+$', message="Login może zawierać tylko litery, cyfry i podkreślniki")])
     password = PasswordField('Hasło', validators=[
         DataRequired(message="Hasło jest wymagane"),
-        Length(min=8, message="Hasło musi mieć minimum 8 znaków"),
+        Length(min=8, max=50, message="Hasło musi mieć od 8 do 50 znaków"),
         Regexp(r'^.*[a-z].*$', message="Hasło musi zawierać co najmniej jedną małą literę"),
         Regexp(r'^.*[A-Z].*$', message="Hasło musi zawierać co najmniej jedną wielką literę"),
         Regexp(r'^.*[0-9].*$', message="Hasło musi zawierać co najmniej jedną cyfrę"),
@@ -22,8 +23,10 @@ class RegistrationForm(FlaskForm):
     submit = SubmitField('Zarejestruj się')
 
 class LoginForm(FlaskForm):
-    username = StringField('Login', validators=[DataRequired()])
-    password = PasswordField('Hasło', validators=[DataRequired()])
+    username = StringField('Login', validators=[DataRequired(),
+        Length(min=3, max=20, message="Login ma od 3 do 20 znaków!"),
+        Regexp(r'^[\w]+$', message="Login zawiera tylko litery, cyfry i podkreślniki!")])
+    password = PasswordField('Hasło', validators=[DataRequired(), Length(min=8, max=50)])
     totp_code = StringField('Kod 2FA (6 cyfr)', validators=[DataRequired(), Length(min=6, max=6)])
     submit = SubmitField('Zaloguj się')
 
@@ -37,5 +40,5 @@ class MessageForm(FlaskForm):
     files = MultipleFileField('Załączniki (opcjonalnie)', render_kw={'multiple': True}, validators=[
         validate_file_size,
         Length(max=5, message="Możesz wysłać maksymalnie 5 załączników.")])
-    password_confirm = PasswordField('Potwierdź hasło (do podpisu)', validators=[DataRequired()])
+    password_confirm = PasswordField('Potwierdź hasło (do podpisu)', validators=[DataRequired(), Length(min=8, max=50)])
     submit = SubmitField('Wyślij wiadomość')
