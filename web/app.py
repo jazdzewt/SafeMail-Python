@@ -169,10 +169,10 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Pobierz wiadomości dla zalogowanego użytkownika
+    # pobieramy wiadomosci dla zalogowanego uzytkownika (user_id jest w ciasteczku)
     received_messages = Message.query.filter_by(receiver_id=current_user.id).order_by(Message.timestamp.desc()).all()
-    # Pobierz nazwy nadawców
-    messages_data = []
+    # pobieramy dane dla kazdej wiadomosci
+    messages_data = [] # lista słowników
     for msg in received_messages:
         sender = User.query.get(msg.sender_id)
         messages_data.append({
@@ -187,6 +187,7 @@ def dashboard():
 @app.route('/logout', methods=['POST'])
 @login_required
 def logout():
+    # Flask usuwa identyfikator z sesji (ciasteczka)
     logout_user()
     flash('Wylogowano.', 'info')
     return redirect(url_for('login'))
@@ -198,13 +199,13 @@ def logout():
 @limiter.limit("50 per day")
 def send_message():
     form = MessageForm()
-    # Populate the recipient choices dynamically
+    # pobieramy wszystkich uzytkownikow z bazy danych
     users = User.query.all()
-    # Exclude current user from choices
+    # tworzymy liste z uzytkownikami (bez użytkownika zalogowanego teraz)
     form.recipient.choices = [(u.id, u.username) for u in users if u.id != current_user.id]
 
     if form.validate_on_submit():
-        recipient_ids = form.recipient.data
+        recipient_ids = form.recipient.data # u.id z form.recipient
         if not recipient_ids:
              flash('Musisz wybrać co najmniej jednego odbiorcę.', 'warning')
              return render_template('create_message.html', form=form)
@@ -213,13 +214,13 @@ def send_message():
         content = form.content.data.encode('utf-8')
         password = form.password_confirm.data
         
-        # 1. Verify password & Unlock Private Key (Sender)
+        # Weryfikujemy hasło użytkownika
         if not verify_password(current_user.password_hash, password):
              flash('Nieprawidłowe hasło (potrzebne do podpisu).', 'danger')
              return render_template('create_message.html', form=form)
         
         try:
-             # Decrypt Sender's Private Key
+             # Odszyfrowujemy klucz prywatny
              sender_priv_key_pem_enc = current_user.encrypted_private_key # stored as text
              
              sender_priv_key_obj = decrypt_private_key(sender_priv_key_pem_enc.encode('utf-8'), password)
@@ -227,22 +228,21 @@ def send_message():
                  flash('Błąd dekodowania klucza prywatnego.', 'danger')
                  return render_template('create_message.html', form=form)
 
-             # 2. Prepare Encryption (ONCE for all recipients)
-             session_key = os.urandom(32) # 256-bit AES key
+             # Rozpoczynamy szyfrowanie wiadomości
+             session_key = os.urandom(32) # 256-bitowy klucz AES
              
-             # Encrypt Body (AES)
+             # Szyfrowanie głównej części wiadomości
              ciphertext, nonce, tag, session_key = encrypt_aes_gcm(session_key, content)
              
-             # Start building sign_data with body parts
+             # Budujemy dane do podpisu
              sign_data = nonce + ciphertext + tag
 
-             # Przygotowanie załączników (raz)
+             # Przygotowanie załączników
              encrypted_attachments = []
-
 
              if form.files.data:
                  for file_storage in form.files.data:
-                     # Check if file is empty (browser sometimes sends empty field)
+                     # Sprawdzamy czy plik jest pusty
                      if file_storage.filename == '':
                          continue
                          
@@ -263,17 +263,17 @@ def send_message():
                               'tag': att_tag
                           })
 
-             # SORTUJEMY załączniki po TAGu (jest identyczny dla każdego odbiorcy), aby kolejność była deterministyczna
+             # sortujemy załączniki po TAGu (jest identyczny dla każdego odbiorcy)
              encrypted_attachments.sort(key=lambda x: x['tag'])
 
-             # Append sorted attachment parts to sign_data
+             # Dodajemy do sign_data posortowane załączniki
              for att in encrypted_attachments:
                  sign_data += att['nonce'] + att['blob'] + att['tag']
 
-             # Sign the Ciphertext (nonce + ciphertext + tag + [att_nonce + att_ciphertext + att_tag]...)
+             # Podpisujemy szyfrowany tekst (nonce + ciphertext + tag + [att_nonce + att_ciphertext + att_tag]...)
              signature = sign_rsa(sender_priv_key_obj, sign_data)
 
-             # 3. Loop through Recipients and Save Messages
+             # Przechodzimy przez wszystkich odbiorców i wywyłamy wiadomości
              sent_count = 0
              for r_id in recipient_ids:
                  recipient = User.query.get(r_id)
@@ -282,7 +282,7 @@ def send_message():
 
                  recipient_pub_key_pem = recipient.public_key
                  
-                 # Encrypt Session Key for THIS Recipient (RSA)
+                 # Szyfrujemy klucz sesyjny dla odbiorcy jego kluczem publicznym
                  enc_key_recipient = encrypt_rsa(recipient_pub_key_pem, session_key)
                  
                  msg = Message(
@@ -296,9 +296,9 @@ def send_message():
                      signature=signature
                  )
                  db.session.add(msg)
-                 db.session.flush() # To get msg.id if needed
+                 db.session.flush() # Zeby dostać msg.id, SQLAlchemy wysyła INSERT'a do bazy danych
                  
-                 # Add attachments
+                 # Dodajemy załączniki
                  for att_data in encrypted_attachments:
                      attachment = Attachment(
                          message_id=msg.id,
@@ -319,7 +319,7 @@ def send_message():
                  flash('Nie udało się wysłać wiadomości do żadnego odbiorcy.', 'warning')
 
         except Exception as e:
-            db.session.rollback()
+            db.session.rollback() # Jesli błąd to cofamy wszystkie zmiany w bazie danych 
             app.logger.error(f"Błąd wysyłania: {e}")
             flash('Błąd wysyłania!', 'danger')
             
@@ -355,24 +355,22 @@ def view_message(message_id):
                     flash('Nieprawidłowe hasło.', 'danger')
                 else:
                     try:
-                        # Decrypt Private Key
+                        # Odszyfrowanie klucza prywatnego
                         priv_key_pem_enc = current_user.encrypted_private_key
                         priv_key_obj = decrypt_private_key(priv_key_pem_enc.encode('utf-8'), password)
                         
                         if not priv_key_obj:
                              flash('Błąd dekodowania klucza prywatnego.', 'danger')
                         else:
-                            # Decrypt Session Key (Only Recipient)
+                            # Odszyfrowywujemy klucz sesji dla danego odbiorcy
                             enc_session_key = msg.enc_session_key_recipient
                                 
                             session_key = decrypt_rsa(priv_key_obj, enc_session_key)
                             
-                            # Decrypt Body
+                            # Odszyfrowujemy treść wiadomości
                             decrypted_body = decrypt_aes_gcm(session_key, msg.encrypted_body, msg.body_nonce, msg.tag).decode('utf-8')
                             
-                            # Attachments are accessed via msg.attachments in template
-
-                            # Mark as read if receiver
+                            # Po odszyfrowaniu wiadomości oznaczamy ją jako przeczytaną
                             if not msg.is_read:
                                 msg.is_read = True
                                 db.session.commit()
@@ -402,15 +400,16 @@ def verify_signature(message_id):
         return redirect(url_for('view_message', message_id=message_id))
 
     try:
-        # Reconstruct what was signed: nonce + ciphertext + tag
+        # Rekonstruujemy dane, które były podpisane
         signed_data = msg.body_nonce + msg.encrypted_body + msg.tag
         
-        # Sort attachments by TAG to ensure same order as signed
+        # Sortujemy załączniki według TAG, tak jak bylo to zrobione wcześniej
         sorted_attachments = sorted(msg.attachments, key=lambda x: x.tag)
         
         for att in sorted_attachments:
             signed_data += att.nonce + att.encrypted_blob + att.tag
         
+        # Weryfikujemy podpis cyfrowy
         is_valid = verify_signature_rsa(sender.public_key, signed_data, msg.signature)
         
         if is_valid:
@@ -445,26 +444,36 @@ def download_attachment(attachment_id):
          flash('Podaj hasło aby pobrać plik.', 'danger')
          return redirect(url_for('view_message', message_id=msg.id))
          
+    # Weryfikujemy hasło
     if not verify_password(current_user.password_hash, password):
         flash('Nieprawidłowe hasło.', 'danger')
         time.sleep(random.uniform(1.0, 2.0))
         return redirect(url_for('view_message', message_id=msg.id))
         
     try:
+        # Odszyfrowujemy klucz prywatny
         priv_key_pem_enc = current_user.encrypted_private_key
         priv_key_obj = decrypt_private_key(priv_key_pem_enc.encode('utf-8'), password)
         
+        # Bierzemy klucz sesyjny zaszyfrowany dla odbiorcy
         enc_session_key = msg.enc_session_key_recipient
             
+        # Odszyfrowujemy klucz sesyjny
         session_key = decrypt_rsa(priv_key_obj, enc_session_key)
         
+        # Odszyfrowujemy plik kluczem sesyjnym 
         file_bytes = decrypt_aes_gcm(session_key, attachment.encrypted_blob, attachment.nonce, attachment.tag)
         
         time.sleep(random.uniform(1.0, 2.0))
+        # Zwracamy plik
         return send_file(
+            # wysyłamy plik jako ciąg bajtów z RAM'u 
             io.BytesIO(file_bytes),
+            # nie wyświetlamy tylko jako attachment 
             as_attachment=True,
+            # insruujemy jak plik ma się nazywać
             download_name=attachment.filename,
+            # informujemy przeglądarkę że będą to surowe bajty
             mimetype='application/octet-stream'
         )
         
