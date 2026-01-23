@@ -22,5 +22,5 @@ class Config:
     # Informacja jak długo użytkownik pozostaje zalogowany bez aktywności.
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=60)
     # Limit rozmiaru pliku, który można przesłać.
-    MAX_CONTENT_LENGTH = 10 * 1024 * 1024 # 10MB bo 1KB to 1024 bajtów, a 1MB to 1024KB
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024 # * 5 powinno być # 10MB bo 1KB to 1024 bajtów, a 1MB to 1024KB
 
