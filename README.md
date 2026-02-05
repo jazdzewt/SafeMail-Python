@@ -1,8 +1,8 @@
-# SafeMail-Python
+# SafeMail
 
 SafeMail is a secure web-based chat application built with Python (Flask), designed to demonstrate core concepts of cybersecurity including encryption, secure authentication, and digital signatures.
 
-## 🚀 Features
+## Features
 
 *   **User Authentication**: Secure Login and Registration system.
 *   **Two-Factor Authentication (2FA)**: Time-based One-Time Password (TOTP) integration using Google Authenticator (or similar).
@@ -16,7 +16,7 @@ SafeMail is a secure web-based chat application built with Python (Flask), desig
     *   Secure Headers
 *   **Containerized Architecture**: Fully dockerized with separate containers for the Web App and Nginx.
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 *   **Backend**: Python 3.12, Flask 3.0
 *   **Database**: SQLite (SQLAlchemy)
@@ -24,7 +24,7 @@ SafeMail is a secure web-based chat application built with Python (Flask), desig
 *   **Server**: Gunicorn served behind Nginx
 *   **Infrastructure**: Docker & Docker Compose
 
-## 📥 Installation
+## Installation
 
 ### Prerequisites
 *   [Docker](https://www.docker.com/products/docker-desktop)
@@ -52,7 +52,7 @@ SafeMail is a secure web-based chat application built with Python (Flask), desig
 
     > **Note:** Since this uses a self-signed certificate for development, your browser may warn you about the connection not being private. You can proceed safely (e.g., "Advanced" -> "Proceed to localhost").
 
-## 💻 Local Development (Without Docker)
+## Local Development (Without Docker)
 
 1.  **Install Dependencies:**
     ```bash
@@ -65,7 +65,7 @@ SafeMail is a secure web-based chat application built with Python (Flask), desig
     ```
     The app will run on `http://localhost:5000` (HTTP only, unless configured otherwise).
 
-## 🔒 Security Details
+## Security Details
 
 This project implements several security layers:
 *   **Passwords**: Hashed securely using Argon2.
