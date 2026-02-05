@@ -1,6 +1,6 @@
-# SafeChat-Python
+# SafeMail-Python
 
-SafeChat is a secure web-based chat application built with Python (Flask), designed to demonstrate core concepts of cybersecurity including encryption, secure authentication, and digital signatures.
+SafeMail is a secure web-based chat application built with Python (Flask), designed to demonstrate core concepts of cybersecurity including encryption, secure authentication, and digital signatures.
 
 ## 🚀 Features
 
@@ -34,8 +34,8 @@ SafeChat is a secure web-based chat application built with Python (Flask), desig
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/jazdzewt/SafeChat-Python.git
-    cd SafeChat-Python
+    git clone https://github.com/jazdzewt/SafeMail-Python.git
+    cd SafeMail-Python
     ```
 
 2.  **Generate Secrets (if not present):**
@@ -73,6 +73,3 @@ This project implements several security layers:
 *   **Data in Transit**: All traffic is encrypted via TLS/SSL (Nginx).
 *   **Input Validation**: Strict validation of user inputs to prevent XSS and Injection attacks.
 
-## 📄 License
-
-[License Name]
